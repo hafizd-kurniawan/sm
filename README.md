@@ -67,6 +67,10 @@ CREATE TABLE devices (
 ```
  migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/smart_devices?sslmode=disable" up
 ```
+# Swagger Docs
+```
+http://localhost:3000/docs/index.html
+```
 
 # Start Server
 ```
