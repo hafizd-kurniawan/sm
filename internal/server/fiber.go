@@ -2,6 +2,7 @@ package server
 
 import (
 	"boilerplate/config"
+	"boilerplate/internal/core/device"
 	"boilerplate/internal/core/role"
 	"boilerplate/internal/core/user"
 	"boilerplate/internal/middleware"
@@ -60,6 +61,7 @@ func Run(conf *config.Config, dbList *db.DatabaseList, appLoger *logrus.Logger) 
 	//* Core Routes
 	role.NewRoutes(api, handler)
 	user.NewRoutes(api, handler)
+	device.NewRoutes(api, handler)
 
 	//* CMS Routes
 	// cmsWorkOfType.NewRoutes(api, handler)

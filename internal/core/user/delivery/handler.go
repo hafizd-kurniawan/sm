@@ -4,6 +4,7 @@ import (
 	"boilerplate/config"
 	"boilerplate/internal/core/user/models"
 	"boilerplate/internal/wrapper/usecase"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"boilerplate/pkg/exception"
+	"boilerplate/pkg/validator"
 )
 
 type UserHandler struct {
@@ -36,9 +38,15 @@ func (h UserHandler) Register(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	resultUser, err := h.Usecase.Core.User.CreateUser(ctx.Context(), req)
+	errMessage, errMessageInd := validator.ValidateDataRequest(req)
+	if errMessage != "" || errMessageInd != "" {
+		return exception.CreateResponse(init, fiber.StatusBadRequest, errMessage, errMessageInd, nil)
+	}
+
+	userEmail := ""
+	resultUser, err := h.Usecase.Core.User.CreateUser(ctx.Context(), req, userEmail)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error register user: %s", err.Error())
+		errMessage = fmt.Sprintf("Error register user: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
 
@@ -57,22 +65,12 @@ func (h UserHandler) GetUserByID(ctx *fiber.Ctx) error {
 
 	resultUser, err := h.Usecase.Core.User.GetUserByID(ctx.Context(), id)
 	if err != nil {
+		if errors.Is(err, exception.ErrNotFound) {
+			errMessage := fmt.Sprintf("Error get user by id: %s", err.Error())
+			return exception.CreateResponse(init, fiber.StatusNotFound, errMessage, "", nil)
+		}
+
 		errMessage := fmt.Sprintf("Error get user by id: %s", err.Error())
-		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
-	}
-
-	succesMessage := "User retrieved successfully"
-	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultUser)
-}
-
-func (h UserHandler) GetUserByEmail(ctx *fiber.Ctx) error {
-	init := exception.InitException(ctx, h.Conf, h.Log)
-
-	email := ctx.Params("email")
-
-	resultUser, err := h.Usecase.Core.User.GetUserByEmail(ctx.Context(), email)
-	if err != nil {
-		errMessage := fmt.Sprintf("Error get user by email: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
 
@@ -88,7 +86,13 @@ func (h UserHandler) UpdateUser(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	resultUser, err := h.Usecase.Core.User.UpdateUser(ctx.Context(), req)
+	errMessage, errMessageInd := validator.ValidateDataRequest(req)
+	if errMessage != "" || errMessageInd != "" {
+		return exception.CreateResponse(init, fiber.StatusBadRequest, errMessage, errMessageInd, nil)
+	}
+
+	userEmail := ctx.Locals("employee_name").(string)
+	resultUser, err := h.Usecase.Core.User.UpdateUser(ctx.Context(), req, userEmail)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error update user: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
@@ -107,7 +111,8 @@ func (h UserHandler) DeleteUser(ctx *fiber.Ctx) error {
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
 
-	err = h.Usecase.Core.User.DeleteUser(ctx.Context(), id)
+	userEmail := ctx.Locals("employee_name").(string)
+	err = h.Usecase.Core.User.DeleteUser(ctx.Context(), id, userEmail)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error delete user by id: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
@@ -138,6 +143,11 @@ func (h UserHandler) Login(ctx *fiber.Ctx) error {
 		return err
 	}
 
+	errMessage, errMessageInd := validator.ValidateDataRequest(req)
+	if errMessage != "" || errMessageInd != "" {
+		return exception.CreateResponse(init, fiber.StatusBadRequest, errMessage, errMessageInd, nil)
+	}
+
 	resultUser, err := h.Usecase.Core.User.Login(ctx.Context(), req)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error login user: %s", err.Error())
@@ -148,3 +158,30 @@ func (h UserHandler) Login(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultUser)
 }
 
+func (h UserHandler) GetMe(ctx *fiber.Ctx) error {
+	init := exception.InitException(ctx, h.Conf, h.Log)
+
+	employeeName := ctx.Locals("employee_name")
+
+	if employeeName == "" {
+		errMessage := fmt.Sprintf("Error get user by email: %s", exception.ErrUnauthorized)
+		return exception.CreateResponse(init, fiber.StatusUnauthorized, errMessage, "", nil)
+	}
+
+	email := employeeName.(string)
+	resultUser, err := h.Usecase.Core.User.GetUserByEmailAndRole(ctx.Context(), email)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error get user by email: %s", err.Error())
+		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
+	}
+
+	response := models.UserDataResponse{
+		ID:    resultUser.ID,
+		Email: resultUser.Email,
+		Name:  resultUser.Name,
+		Role:  resultUser.Role,
+	}
+
+	succesMessage := "User retrieved successfully"
+	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", response)
+}

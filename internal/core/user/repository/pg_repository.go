@@ -2,19 +2,21 @@ package repository
 
 import (
 	"boilerplate/internal/core/user/models"
+	"boilerplate/pkg/exception"
 	"boilerplate/pkg/infra/db"
 	"context"
-	"fmt"
+	"database/sql"
+	"errors"
 )
 
 type Repository interface {
-	CreateUser(ctx context.Context, userReq models.UserRegisterRequest) (models.UserCreateResponse, error)
-	GetUserByEmail(ctx context.Context, email string) (models.User, error)
-	GetUserByID(ctx context.Context, id int) (models.User, error)
-	UpdateUser(ctx context.Context, userReq models.UserUpdateRequest) (models.User, error)
-	DeleteUser(ctx context.Context, id int) error
+	CreateUser(ctx context.Context, userReq models.UserRegisterRequest, createdBy string) (models.UserCreateResponse, error)
 	GetAllUser(ctx context.Context) ([]models.UserListResponse, error)
-	Login(ctx context.Context, userReq models.UserLoginRequest) (models.User, error)
+	GetUserByID(ctx context.Context, id int) (models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (models.User, error)
+	UpdateUser(ctx context.Context, userReq models.UserUpdateRequest, updatedBy string) (models.User, error)
+	DeleteUser(ctx context.Context, id int, deletedBy string) error
+	GetUserByEmailAndRole(ctx context.Context, email string) (models.UserDataResponse, error)
 }
 
 type UserRepo struct {
@@ -27,29 +29,34 @@ func NewUserRepo(dbList *db.DatabaseList) UserRepo {
 	}
 }
 
-func (u UserRepo) CreateUser(ctx context.Context, userReq models.UserRegisterRequest) (models.UserCreateResponse, error) {
+func (u UserRepo) CreateUser(ctx context.Context, userReq models.UserRegisterRequest, createdBy string) (models.UserCreateResponse, error) {
 	var response models.UserCreateResponse
-	err := u.DBList.DatabaseApp.QueryRowContext(ctx, CreateUser, userReq.Name, userReq.Email, userReq.Password, userReq.Role).Scan(&response.Name, &response.Email)
+	err := u.DBList.DatabaseApp.QueryRowContext(ctx, CreateUser, userReq.Name, userReq.Email, userReq.Password, userReq.Role, createdBy).Scan(&response.Name, &response.Email)
 	if err != nil {
 		return response, err
 	}
 	return response, nil
 
 }
+
 func (u UserRepo) GetUserByID(ctx context.Context, id int) (models.User, error) {
 	var response models.User
 
 	err := u.DBList.DatabaseApp.QueryRowContext(ctx, GetUserByID, id).Scan(&response.ID, &response.Name, &response.Email, &response.Password, &response.Role)
 	if err != nil {
+		if errors.Is(err, exception.ErrNotFound) {
+			return response, exception.ErrNotFound
+		}
 		return response, err
 	}
 
 	return response, nil
 }
-func (u UserRepo) UpdateUser(ctx context.Context, userReq models.UserUpdateRequest) (models.User, error) {
+
+func (u UserRepo) UpdateUser(ctx context.Context, userReq models.UserUpdateRequest, updatedBy string) (models.User, error) {
 	var response models.User
 
-	_, err := u.DBList.DatabaseApp.ExecContext(ctx, UpdateUser, userReq.Name, userReq.Email, userReq.Password, userReq.Role, userReq.ID)
+	_, err := u.DBList.DatabaseApp.ExecContext(ctx, UpdateUser, userReq.Name, userReq.Email, userReq.Password, userReq.Role, updatedBy, userReq.ID)
 	if err != nil {
 		return response, err
 	}
@@ -61,19 +68,14 @@ func (u UserRepo) UpdateUser(ctx context.Context, userReq models.UserUpdateReque
 
 	return response, nil
 }
-func (u UserRepo) DeleteUser(ctx context.Context, id int) error {
-	res, err := u.DBList.DatabaseApp.ExecContext(ctx, DeleteUser, id)
+func (u UserRepo) DeleteUser(ctx context.Context, id int, deletedBy string) error {
+	_, err := u.DBList.DatabaseApp.ExecContext(ctx, DeleteUser, deletedBy, id)
 	if err != nil {
 		return err
 	}
-
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("no user found to delete with ID %d", id)
-	}
-
 	return nil
 }
+
 func (u UserRepo) GetAllUser(ctx context.Context) ([]models.UserListResponse, error) {
 	var response []models.UserListResponse
 
@@ -85,7 +87,7 @@ func (u UserRepo) GetAllUser(ctx context.Context) ([]models.UserListResponse, er
 
 	for rows.Next() {
 		var user models.UserListResponse
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role); err != nil {
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.Role); err != nil {
 			return nil, err
 		}
 		response = append(response, user)
@@ -103,20 +105,25 @@ func (u UserRepo) GetUserByEmail(ctx context.Context, email string) (models.User
 
 	err := u.DBList.DatabaseApp.QueryRowContext(ctx, GetUserByEmail, email).Scan(&response.ID, &response.Name, &response.Email, &response.Password, &response.Role)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return response, exception.ErrNotFound
+		}
 		return response, err
 	}
 
 	return response, nil
 }
 
-func (u UserRepo) Login(ctx context.Context, userReq models.UserLoginRequest) (models.User, error) {
-	var response models.User
+func (u UserRepo) GetUserByEmailAndRole(ctx context.Context, email string) (models.UserDataResponse, error) {
+	var response models.UserDataResponse
 
-	err := u.DBList.DatabaseApp.QueryRowContext(ctx, Login, userReq.Email, userReq.Password).Scan(&response.ID, &response.Name, &response.Email, &response.Password, &response.Role)
+	err := u.DBList.DatabaseApp.QueryRowContext(ctx, GetUserByEmailAndRole, email).Scan(&response.ID, &response.Name, &response.Email, &response.Role)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return response, exception.ErrNotFound
+		}
 		return response, err
 	}
 
 	return response, nil
-
 }

@@ -4,22 +4,25 @@ import (
 	"boilerplate/config"
 	"boilerplate/internal/core/user/models"
 	repo "boilerplate/internal/wrapper/repository"
+	"boilerplate/pkg/exception"
 	"boilerplate/pkg/infra/db"
 	"boilerplate/pkg/utils"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
 )
 
 type Usecase interface {
-	CreateUser(ctx context.Context, userReq models.UserRegisterRequest) (models.UserCreateResponse, error)
+	CreateUser(ctx context.Context, userReq models.UserRegisterRequest, createdBy string) (models.UserCreateResponse, error)
 	GetUserByEmail(ctx context.Context, email string) (models.User, error)
 	GetUserByID(ctx context.Context, id int) (models.User, error)
-	UpdateUser(ctx context.Context, userReq models.UserUpdateRequest) (models.User, error)
-	DeleteUser(ctx context.Context, id int) error
+	UpdateUser(ctx context.Context, userReq models.UserUpdateRequest, updatedBy string) (models.User, error)
+	DeleteUser(ctx context.Context, id int, deletedBy string) error
 	GetAllUser(ctx context.Context) ([]models.UserListResponse, error)
 	Login(ctx context.Context, userReq models.UserLoginRequest) (models.LoginResponse, error)
+	GetUserByEmailAndRole(ctx context.Context, email string) (models.UserDataResponse, error)
 }
 
 type UserUsecase struct {
@@ -38,17 +41,18 @@ func NewUserUsecase(repository repo.Repository, conf *config.Config, dbList *db.
 	}
 }
 
-func (u UserUsecase) CreateUser(ctx context.Context, userReq models.UserRegisterRequest) (models.UserCreateResponse, error) {
-	// cek apakah user sudah ada
-	user, err := u.Repo.Core.User.GetUserByEmail(ctx, userReq.Email)
-	if user.ID != 0 {
-		return models.UserCreateResponse{}, fmt.Errorf("email sudah ada")
+func (u UserUsecase) CreateUser(ctx context.Context, userReq models.UserRegisterRequest, createdBy string) (models.UserCreateResponse, error) {
+	var response models.UserCreateResponse
+	_, err := u.Repo.Core.User.GetUserByEmail(ctx, userReq.Email)
+	if err == nil {
+		return response, fmt.Errorf("%w: email sudah ada", exception.ErrConflict)
 	}
 
 	hashPassword, err := utils.HashingPassword(userReq.Password)
 	if err != nil {
-		return models.UserCreateResponse{}, err
+		return response, err
 	}
+
 	createUser := models.UserRegisterRequest{
 		Email:    userReq.Email,
 		Name:     userReq.Name,
@@ -56,7 +60,7 @@ func (u UserUsecase) CreateUser(ctx context.Context, userReq models.UserRegister
 		Role:     userReq.Role,
 	}
 
-	_, err = u.Repo.Core.User.CreateUser(ctx, createUser)
+	_, err = u.Repo.Core.User.CreateUser(ctx, createUser, createdBy)
 	if err != nil {
 		return models.UserCreateResponse{}, err
 	}
@@ -71,7 +75,7 @@ func (u UserUsecase) GetUserByEmail(ctx context.Context, email string) (models.U
 	user, err := u.Repo.Core.User.GetUserByEmail(ctx, email)
 	if err != nil {
 		u.Log.Error(err)
-		return user, err
+		return user, fmt.Errorf("%w: user not found", exception.ErrNotFound)
 	}
 	return user, nil
 }
@@ -80,13 +84,27 @@ func (u UserUsecase) GetUserByID(ctx context.Context, id int) (models.User, erro
 	user, err := u.Repo.Core.User.GetUserByID(ctx, id)
 	if err != nil {
 		u.Log.Error(err)
-		return user, err
+		return user, fmt.Errorf("%w: user not found", exception.ErrNotFound)
 	}
 	return user, nil
 }
 
-func (u UserUsecase) UpdateUser(ctx context.Context, userReq models.UserUpdateRequest) (models.User, error) {
-	user, err := u.Repo.Core.User.UpdateUser(ctx, userReq)
+func (u UserUsecase) UpdateUser(ctx context.Context, userReq models.UserUpdateRequest, updatedBy string) (models.User, error) {
+
+	user, err := u.Repo.Core.User.GetUserByID(ctx, userReq.ID)
+	if err != nil {
+		u.Log.Error(err)
+		return user, err
+	}
+
+	hashPassword, err := utils.HashingPassword(userReq.Password)
+	if err != nil {
+		u.Log.Error(err)
+		return user, err
+	}
+	user.Password = hashPassword
+
+	user, err = u.Repo.Core.User.UpdateUser(ctx, userReq, updatedBy)
 	if err != nil {
 		u.Log.Error(err)
 		return user, err
@@ -94,8 +112,8 @@ func (u UserUsecase) UpdateUser(ctx context.Context, userReq models.UserUpdateRe
 	return user, nil
 }
 
-func (u UserUsecase) DeleteUser(ctx context.Context, id int) error {
-	err := u.Repo.Core.User.DeleteUser(ctx, id)
+func (u UserUsecase) DeleteUser(ctx context.Context, id int, deletedBy string) error {
+	err := u.Repo.Core.User.DeleteUser(ctx, id, deletedBy)
 
 	if err != nil {
 		u.Log.Error(err)
@@ -117,19 +135,14 @@ func (u UserUsecase) Login(ctx context.Context, userReq models.UserLoginRequest)
 	var response models.LoginResponse
 
 	user, err := u.Repo.Core.User.GetUserByEmail(ctx, userReq.Email)
-	if user.ID == 0 {
-		return response, fmt.Errorf("user not found")
+	if err != nil {
+		u.Log.Error(err)
+		return response, fmt.Errorf("%w: user not found", exception.ErrNotFound)
 	}
 
 	if isMatchPassword := utils.CheckHashedPassword(user.Password, userReq.Password); !isMatchPassword {
-		return response, fmt.Errorf("password is not match")
-	}
-
-	userReq.Password = user.Password
-	user, err = u.Repo.Core.User.Login(ctx, userReq)
-	if err != nil {
 		u.Log.Error(err)
-		return response, err
+		return response, fmt.Errorf("%w: password is not match", exception.ErrUnauthorized)
 	}
 
 	userRole, err := u.Repo.Core.Role.GetRoleByID(ctx, user.Role)
@@ -141,10 +154,20 @@ func (u UserUsecase) Login(ctx context.Context, userReq models.UserLoginRequest)
 	token, err := utils.GenereateJWT(u.Conf, user.Email, userRole.Role)
 
 	return models.LoginResponse{
-		UsesrID:  user.ID,
 		Username: user.Name,
-		Password: user.Password,
 		Email:    user.Email,
 		Token:    token,
 	}, nil
+}
+
+func (u UserUsecase) GetUserByEmailAndRole(ctx context.Context, email string) (models.UserDataResponse, error) {
+	user, err := u.Repo.Core.User.GetUserByEmailAndRole(ctx, email)
+	if err != nil {
+		if errors.Is(err, exception.ErrNotFound) {
+			return models.UserDataResponse{}, exception.ErrNotFound
+		}
+		u.Log.Error(err)
+		return models.UserDataResponse{}, err
+	}
+	return user, nil
 }

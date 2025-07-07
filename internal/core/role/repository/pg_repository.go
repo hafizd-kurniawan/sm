@@ -2,18 +2,20 @@ package repository
 
 import (
 	"boilerplate/internal/core/role/models"
+	"boilerplate/pkg/exception"
 	"boilerplate/pkg/infra/db"
 	context "context"
-	"fmt"
+	"database/sql"
+	"errors"
 )
 
 type Repository interface {
-	CreateRole(ctx context.Context, roleReq models.RoleCreateRequest) (models.RoleCreateRequest, error)
+	CreateRole(ctx context.Context, roleReq models.RoleCreateRequest, createdBy string) (models.RoleCreateResponse, error)
 	GetAllRole(ctx context.Context) ([]models.RoleListResponse, error)
 	GetRoleByID(ctx context.Context, id int) (models.Role, error)
 	GetRoleByRole(ctx context.Context, role string) (models.Role, error)
-	UpdateRole(ctx context.Context, role models.RoleUpdateRequest) (models.Role, error)
-	DeleteRole(ctx context.Context, id int) error
+	UpdateRole(ctx context.Context, role models.RoleUpdateRequest, updatedBy string) (models.Role, error)
+	DeleteRole(ctx context.Context, id int, deletedBy string) error
 }
 
 type RoleRepo struct {
@@ -26,10 +28,9 @@ func NewRoleRepo(dbList *db.DatabaseList) RoleRepo {
 	}
 }
 
-func (r RoleRepo) CreateRole(ctx context.Context, roleReq models.RoleCreateRequest) (models.RoleCreateRequest, error) {
-	var response models.RoleCreateRequest
-
-	err := r.DBList.DatabaseApp.QueryRowContext(ctx, CreateRole, roleReq.Role).Scan(&response.Role)
+func (r RoleRepo) CreateRole(ctx context.Context, roleReq models.RoleCreateRequest, createdBy string) (models.RoleCreateResponse, error) {
+	var response models.RoleCreateResponse
+	err := r.DBList.DatabaseApp.QueryRowContext(ctx, CreateRole, roleReq.Role, createdBy).Scan(&response.Role)
 	if err != nil {
 		return response, err
 	}
@@ -65,8 +66,8 @@ func (r RoleRepo) GetRoleByID(ctx context.Context, id int) (models.Role, error) 
 	var response models.Role
 
 	err := r.DBList.DatabaseApp.QueryRowContext(ctx, GetRoleByID, id).Scan(&response.ID, &response.Role)
-	if err != nil {
-		return response, err
+	if errors.Is(err, sql.ErrNoRows) {
+		return response, exception.ErrNotFound
 	}
 
 	return response, nil
@@ -77,16 +78,19 @@ func (r RoleRepo) GetRoleByRole(ctx context.Context, role string) (models.Role, 
 
 	err := r.DBList.DatabaseApp.QueryRowContext(ctx, GetRoleByRole, role).Scan(&response.ID, &response.Role)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return response, exception.ErrNotFound
+		}
 		return response, err
 	}
 
 	return response, nil
 }
 
-func (r RoleRepo) UpdateRole(ctx context.Context, role models.RoleUpdateRequest) (models.Role, error) {
+func (r RoleRepo) UpdateRole(ctx context.Context, role models.RoleUpdateRequest, updatedBy string) (models.Role, error) {
 	var response models.Role
 
-	_, err := r.DBList.DatabaseApp.ExecContext(ctx, UpdateRole, role.Role, role.ID)
+	_, err := r.DBList.DatabaseApp.ExecContext(ctx, UpdateRole, role.Role, updatedBy, role.ID)
 	if err != nil {
 		return response, err
 	}
@@ -99,16 +103,10 @@ func (r RoleRepo) UpdateRole(ctx context.Context, role models.RoleUpdateRequest)
 	return response, nil
 }
 
-func (r RoleRepo) DeleteRole(ctx context.Context, id int) error {
-	res, err := r.DBList.DatabaseApp.ExecContext(ctx, DeleteRole, id)
+func (r RoleRepo) DeleteRole(ctx context.Context, id int, deletedBy string) error {
+	_, err := r.DBList.DatabaseApp.ExecContext(ctx, DeleteRole, deletedBy, id)
 	if err != nil {
 		return err
 	}
-
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("no role found to delete with ID %d", id)
-	}
-
 	return nil
 }

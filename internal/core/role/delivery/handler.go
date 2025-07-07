@@ -5,6 +5,8 @@ import (
 	"boilerplate/internal/core/role/models"
 	"boilerplate/internal/wrapper/usecase"
 	"boilerplate/pkg/exception"
+	"boilerplate/pkg/validator"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -44,12 +46,18 @@ func (h RoleHandler) CreateRole(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 
 	if err := ctx.BodyParser(&req); err != nil {
-		return err
+		return exception.CreateResponse(init, fiber.StatusBadRequest, "Invalid request body", "", nil)
 	}
 
-	resultRole, err := h.Usecase.Core.Role.CreateRole(ctx.Context(), req)
+	errMessage, errMessageInd := validator.ValidateDataRequest(req)
+	if errMessage != "" || errMessageInd != "" {
+		return exception.CreateResponse(init, fiber.StatusBadRequest, errMessage, errMessageInd, nil)
+	}
+
+	userEmail := ctx.Locals("employee_name").(string)
+	resultRole, err := h.Usecase.Core.Role.CreateRole(ctx.Context(), req, userEmail)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error create role: %s", err.Error())
+		errMessage = fmt.Sprintf("Error create role: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
 
@@ -68,6 +76,11 @@ func (h RoleHandler) GetRoleByID(ctx *fiber.Ctx) error {
 
 	resultRole, err := h.Usecase.Core.Role.GetRoleByID(ctx.Context(), id)
 	if err != nil {
+		if errors.Is(err, exception.ErrNotFound) {
+			errMessage := fmt.Sprintf("Error get role by id: %s", err.Error())
+			return exception.CreateResponse(init, fiber.StatusNotFound, errMessage, "", nil)
+		}
+
 		errMessage := fmt.Sprintf("Error get role by id: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
@@ -84,9 +97,15 @@ func (h RoleHandler) UpdateRole(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	resultRole, err := h.Usecase.Core.Role.UpdateRole(ctx.Context(), req)
+	errMessage, errMessageInd := validator.ValidateDataRequest(req)
+	if errMessage != "" || errMessageInd != "" {
+		return exception.CreateResponse(init, fiber.StatusBadRequest, errMessage, errMessageInd, nil)
+	}
+
+	userEmail := ctx.Locals("employee_name").(string)
+	resultRole, err := h.Usecase.Core.Role.UpdateRole(ctx.Context(), req, userEmail)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error update role: %s", err.Error())
+		errMessage = fmt.Sprintf("Error update role: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
 
@@ -103,7 +122,8 @@ func (h RoleHandler) DeleteRole(ctx *fiber.Ctx) error {
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)
 	}
 
-	err = h.Usecase.Core.Role.DeleteRole(ctx.Context(), id)
+	userEmail := ctx.Locals("employee_name").(string)
+	err = h.Usecase.Core.Role.DeleteRole(ctx.Context(), id, userEmail)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error delete role by id: %s", err.Error())
 		return exception.CreateResponse(init, fiber.StatusInternalServerError, errMessage, "", nil)

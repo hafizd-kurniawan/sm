@@ -2,26 +2,36 @@ package repository
 
 const (
 	CreateRole = `
-	INSERT INTO roles (name) VALUES ($1) RETURNING name;
-	`
-
-	GetRoleByID = `
-		SELECT id, name FROM roles WHERE id = $1;
-	`
-
-	GetRoleByRole = `
-		SELECT id, name FROM roles WHERE role = $1;
-	`
-
-	UpdateRole = `
-		UPDATE roles SET name = $1 WHERE id = $2;
-	`
-
-	DeleteRole = `
-		DELETE FROM roles WHERE id = $1;
+		INSERT INTO roles (name, created_by) 
+		VALUES ($1, $2)
+		RETURNING name;
 	`
 
 	GetAllRole = `
-		SELECT id, name FROM roles;
+		SELECT id, name
+		FROM roles
+		WHERE deleted_at IS NULL;
+	`
+
+	GetRoleByID = `
+		SELECT id, name
+		FROM roles 
+		WHERE id = $1 AND deleted_at IS NULL;
+	`
+
+	GetRoleByRole = `
+		SELECT id, name FROM roles WHERE name = $1 AND deleted_at IS NULL;
+	`
+
+	UpdateRole = `
+		UPDATE roles 
+		SET name = $1, updated_by = $2, updated_at = NOW() 
+		WHERE id = $3 AND deleted_at IS NULL RETURNING name;
+	`
+
+	DeleteRole = `
+		UPDATE roles 
+		SET deleted_at = NOW(), deleted_by = $1 
+		WHERE id = $2 AND deleted_at IS NULL;
 	`
 )

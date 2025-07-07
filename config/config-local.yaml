@@ -22,7 +22,7 @@ Routes:
 Connection:
   DatabaseApp:
     DriverName: postgres
-    DriverSource: user=postgres password=postgres sslmode=disable dbname=smartDevice host=127.0.0.1 port=5432
+    DriverSource: user=postgres password=postgres sslmode=disable dbname=smart_devices host=127.0.0.1 port=5432
     MaxOpenConns: 5
     MaxIdleConns: 5
     ConnMaxLifetime: 30

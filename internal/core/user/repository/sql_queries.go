@@ -2,34 +2,45 @@ package repository
 
 const (
 	CreateUser = `
-	INSERT INTO users (name, email, password, role_id) VALUES ($1, $2, $3, $4) RETURNING name, email;
-	`
-
-	GetUserByID = `
-		SELECT id, name, email, password, role_id FROM users WHERE id = $1;
-	`
-
-	GetUserByEmail = `
-		SELECT id, name, email, password, role_id FROM users WHERE email = $1;
-	`
-
-	UpdateUser = `
-		UPDATE users SET name = $1, email = $2, password = $3, role_id = $4 WHERE id = $5;
-	`
-
-	DeleteUser = `
-		DELETE FROM users WHERE id = $1;
-	`
-
-	DeleteUserByEmail = `
-		DELETE FROM users WHERE email = $1;
+		INSERT INTO users (name, email, password, role_id, created_by) 
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING name, email;
 	`
 
 	GetAllUsers = `
-		SELECT id, name, email, password, role_id FROM users;
+		SELECT u.id, u.name, u.email, r.name as role_name
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+		WHERE u.deleted_at IS NULL;
 	`
 
-	Login = `
-		SELECT id, name, email, password, role_id FROM users WHERE email = $1 AND password = $2;
+	GetUserByID = `
+		SELECT id, name, email, password, role_id
+		FROM users 
+		WHERE id = $1 AND deleted_at IS NULL;
 	`
+
+	GetUserByEmail = `
+		SELECT id, name, email, password, role_id
+		FROM users 
+		WHERE email = $1 AND deleted_at IS NULL;
+	`
+
+	UpdateUser = `
+		UPDATE users 
+		SET name = $1, email = $2, password = $3, role_id = $4, updated_by = $5, updated_at = NOW() 
+		WHERE id = $6 AND deleted_at IS NULL;
+	`
+
+	DeleteUser = `
+		UPDATE users 
+		SET deleted_at = NOW(), deleted_by = $1 
+		WHERE id = $2 AND deleted_at IS NULL;
+	`
+	GetUserByEmailAndRole = `
+		SELECT u.id, u.name, u.email, r.name
+		FROM users u
+		INNER JOIN roles r ON u.role_id = r.id
+		WHERE u.email = $1;
+    `
 )

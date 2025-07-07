@@ -1,18 +1,26 @@
 package models
 
-type UserLoginResponse struct {
-	Token string `json:"token"`
-}
-
 type UserCreateResponse struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 }
 
 type UserListResponse struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+type LoginResponse struct {
+	Username string `json:"username"`
 	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Token    string `json:"token"`
+}
+
+type UserDataResponse struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
 }

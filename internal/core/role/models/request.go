@@ -6,9 +6,5 @@ type RoleCreateRequest struct {
 
 type RoleUpdateRequest struct {
 	ID   int    `json:"id" validate:"required"`
-	Role string `json:"role" validate:"required"`
-}
-
-type RoleDeleteRequest struct {
-	ID int `json:"id" validate:"required"`
+	Role string `json:"name" validate:"required"`
 }
