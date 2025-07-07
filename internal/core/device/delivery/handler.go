@@ -29,6 +29,20 @@ func NewDeviceHandler(uc usecase.Usecase, conf *config.Config, logger *logrus.Lo
 	}
 }
 
+// CreateDevice handles the creation of a new device.
+// @Summary Create a new device
+// @Description Creates a new device with the provided details. Only accessible by Technicians and Admins.
+// @Tags Devices
+// @Accept json
+// @Produce json
+// @Param device body models.DeviceCreateRequest true "Device Create Payload"
+// @Success 201 {object} models.Device "Successfully created device"
+// @Failure 400 {object} exception.ResponseData "Bad Request - Invalid input"
+// @Failure 401 {object} exception.ResponseData "Unauthorized - Invalid or missing token"
+// @Failure 403 {object} exception.ResponseData "Forbidden - User does not have the required role"
+// @Failure 500 {object} exception.ResponseData "Internal Server Error"
+// @Security BearerAuth
+// @Router /devices [post]
 func (h DeviceHandler) CreateDevice(ctx *fiber.Ctx) error {
 	var req models.DeviceCreateRequest
 	init := exception.InitException(ctx, h.Conf, h.Log)
@@ -53,6 +67,16 @@ func (h DeviceHandler) CreateDevice(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultDevice)
 }
 
+// GetAllDevice handles the request to get all devices.
+// @Summary Get all active devices
+// @Description Retrieves a list of all devices that have not been soft-deleted. Accessible by all authenticated users.
+// @Tags Devices
+// @Produce json
+// @Success 200 {array} models.Device
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 500 {object} exception.ResponseData "Internal Server Error"
+// @Security BearerAuth
+// @Router /devices [get]
 func (h DeviceHandler) GetAllDevice(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 
@@ -66,6 +90,18 @@ func (h DeviceHandler) GetAllDevice(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultDevice)
 }
 
+// GetDeviceByID handles the request to get a device by its ID.
+// @Summary Get a single device by ID
+// @Description Retrieves details of a specific device. Accessible by all authenticated users.
+// @Tags Devices
+// @Produce json
+// @Param id path int true "Device ID"
+// @Success 200 {object} models.Device
+// @Failure 400 {object} exception.ResponseData "Invalid ID format"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 404 {object} exception.ResponseData "Device not found"
+// @Security BearerAuth
+// @Router /devices/{id} [get]
 func (h DeviceHandler) GetDeviceByID(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 
@@ -90,6 +126,20 @@ func (h DeviceHandler) GetDeviceByID(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultDevice)
 }
 
+// UpdateDevice handles the update of a device's data.
+// @Summary Update an existing device
+// @Description Updates a device's details. Only accessible by Technicians and Admins.
+// @Tags Devices
+// @Accept json
+// @Produce json
+// @Param id path int true "Device ID"
+// @Param device body models.DeviceUpdateRequest true "Device Update Payload"
+// @Success 200 {object} models.Device "Successfully updated device"
+// @Failure 400 {object} exception.ResponseData "Bad Request - Invalid input"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 403 {object} exception.ResponseData "Forbidden"
+// @Failure 404 {object} exception.ResponseData "Device not found"
+// @Security BearerAuth
 func (h DeviceHandler) UpdateDevice(ctx *fiber.Ctx) error {
 	var req models.DeviceUpdateRequest
 	init := exception.InitException(ctx, h.Conf, h.Log)
@@ -114,6 +164,19 @@ func (h DeviceHandler) UpdateDevice(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultDevice)
 }
 
+// DeleteDevice handles the soft deletion of a device.
+// @Summary Soft delete a device
+// @Description Marks a device as deleted. Only accessible by Admins.
+// @Tags Devices
+// @Produce json
+// @Param id path int true "Device ID"
+// @Success 200 {object} object "Success message"
+// @Failure 400 {object} exception.ResponseData "Invalid ID format"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 403 {object} exception.ResponseData "Forbidden"
+// @Failure 404 {object} exception.ResponseData "Device not found"
+// @Security BearerAuth
+// @Router /devices/{id} [delete]
 func (h DeviceHandler) DeleteDevice(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 

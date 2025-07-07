@@ -13,7 +13,10 @@ import (
 	"fmt"
 	"log"
 
+	_ "boilerplate/docs"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/swagger"
 	"github.com/gofiber/template/html"
 	"github.com/sirupsen/logrus"
 )
@@ -51,6 +54,7 @@ func Run(conf *config.Config, dbList *db.DatabaseList, appLoger *logrus.Logger) 
 
 	//* Root Endpoint
 	app.Get("/", handler.General.Root.GetRoot)
+	app.Get("/docs/*", swagger.HandlerDefault)
 
 	//* Api Endpoint
 	api := app.Group(conf.App.Endpoint)

@@ -28,6 +28,17 @@ func NewRoleHandler(uc usecase.Usecase, conf *config.Config, logger *logrus.Logg
 	}
 }
 
+// GetAllRole retrieves a list of all roles.
+// @Summary Get all roles (Admin Only)
+// @Description Retrieves a complete list of all active roles in the system. Requires administrator access.
+// @Tags Roles
+// @Produce json
+// @Success 200 {array} models.RoleResponse "List of roles retrieved successfully"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 403 {object} exception.ResponseData "Forbidden"
+// @Failure 500 {object} exception.ResponseData "Internal Server Error"
+// @Security BearerAuth
+// @Router /role [get]
 func (h RoleHandler) GetAllRole(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 
@@ -41,6 +52,20 @@ func (h RoleHandler) GetAllRole(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultRole)
 }
 
+// CreateRole handles the creation of a new role.
+// @Summary Create a new role (Admin Only)
+// @Description Creates a new role in the system. Requires administrator access.
+// @Tags Roles
+// @Accept json
+// @Produce json
+// @Param role body models.RoleCreateRequest true "Payload to create a new role"
+// @Success 201 {object} models.RoleResponse "Role created successfully"
+// @Failure 400 {object} exception.ResponseData "Bad Request - Invalid input data"
+// @Failure 401 {object} exception.ResponseData "Unauthorized - Missing or invalid token"
+// @Failure 403 {object} exception.ResponseData "Forbidden - User does not have admin privileges"
+// @Failure 409 {object} exception.ResponseData "Conflict - Role with this name already exists"
+// @Security BearerAuth
+// @Router /role [post]
 func (h RoleHandler) CreateRole(ctx *fiber.Ctx) error {
 	var req models.RoleCreateRequest
 	init := exception.InitException(ctx, h.Conf, h.Log)
@@ -65,6 +90,19 @@ func (h RoleHandler) CreateRole(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultRole)
 }
 
+// GetRoleByID retrieves a single role by its ID.
+// @Summary Get a role by ID (Admin Only)
+// @Description Retrieves the details of a specific role by its unique ID. Requires administrator access.
+// @Tags Roles
+// @Produce json
+// @Param id path int true "Role ID"
+// @Success 200 {object} models.RoleResponse "Role details retrieved successfully"
+// @Failure 400 {object} exception.ResponseData "Bad Request - Invalid ID format"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 403 {object} exception.ResponseData "Forbidden"
+// @Failure 404 {object} exception.ResponseData "Not Found - Role with the specified ID does not exist"
+// @Security BearerAuth
+// @Router /role/{id} [get]
 func (h RoleHandler) GetRoleByID(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 
@@ -89,6 +127,21 @@ func (h RoleHandler) GetRoleByID(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultRole)
 }
 
+// UpdateRole updates an existing role.
+// @Summary Update a role (Admin Only)
+// @Description Updates the name of an existing role. Requires administrator access.
+// @Tags Roles
+// @Accept json
+// @Produce json
+// @Param id path int true "Role ID to update"
+// @Param role body models.RoleUpdateRequest true "Payload to update the role"
+// @Success 200 {object} models.RoleResponse "Role updated successfully"
+// @Failure 400 {object} exception.ResponseData "Bad Request - Invalid input or ID"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 403 {object} exception.ResponseData "Forbidden"
+// @Failure 404 {object} exception.ResponseData "Not Found - Role with the specified ID does not exist"
+// @Security BearerAuth
+// @Router /role/{id} [put]
 func (h RoleHandler) UpdateRole(ctx *fiber.Ctx) error {
 	var req models.RoleUpdateRequest
 	init := exception.InitException(ctx, h.Conf, h.Log)
@@ -113,6 +166,19 @@ func (h RoleHandler) UpdateRole(ctx *fiber.Ctx) error {
 	return exception.CreateResponse(init, fiber.StatusOK, succesMessage, "", resultRole)
 }
 
+// DeleteRole soft-deletes a role.
+// @Summary Soft delete a role (Admin Only)
+// @Description Marks a role as deleted. The role is not permanently removed from the database. Requires administrator access.
+// @Tags Roles
+// @Produce json
+// @Param id path int true "Role ID to delete"
+// @Success 200 {object} object "Success message"
+// @Failure 400 {object} exception.ResponseData "Bad Request - Invalid ID format"
+// @Failure 401 {object} exception.ResponseData "Unauthorized"
+// @Failure 403 {object} exception.ResponseData "Forbidden"
+// @Failure 404 {object} exception.ResponseData "Not Found - Role with the specified ID does not exist"
+// @Security BearerAuth
+// @Router /role/{id} [delete]
 func (h RoleHandler) DeleteRole(ctx *fiber.Ctx) error {
 	init := exception.InitException(ctx, h.Conf, h.Log)
 

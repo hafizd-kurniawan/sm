@@ -1,0 +1,793 @@
+basePath: /api/v1
+definitions:
+  exception.ResponseData:
+    properties:
+      data: {}
+      page: {}
+      requestId:
+        type: string
+      status:
+        $ref: '#/definitions/exception.StatusResponseData'
+      timeStamp:
+        type: string
+    type: object
+  exception.StatusResponseData:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+      messageInd:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  models.Device:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        type: integer
+      location:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  models.DeviceCreateRequest:
+    properties:
+      location:
+        type: string
+      name:
+        type: string
+      status:
+        enum:
+        - online
+        - offline
+        type: string
+    required:
+    - name
+    - status
+    type: object
+  models.DeviceUpdateRequest:
+    properties:
+      id:
+        type: integer
+      location:
+        type: string
+      name:
+        type: string
+      status:
+        enum:
+        - online
+        - offline
+        type: string
+    required:
+    - id
+    - name
+    - status
+    type: object
+  models.LoginResponse:
+    properties:
+      email:
+        type: string
+      token:
+        type: string
+      username:
+        type: string
+    type: object
+  models.RoleCreateRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  models.RoleResponse:
+    properties:
+      id:
+        type: string
+      role:
+        type: string
+    type: object
+  models.RoleUpdateRequest:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    required:
+    - id
+    - name
+    type: object
+  models.User:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: integer
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  models.UserCreateResponse:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+    type: object
+  models.UserDataResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  models.UserListResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  models.UserLoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.UserRegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: integer
+    required:
+    - email
+    - name
+    - password
+    - role
+    type: object
+  models.UserUpdateRequest:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: integer
+    required:
+    - email
+    - id
+    - name
+    - password
+    - role
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: hafizdkurniawan@gmail.com
+    name: Hafizd Kurniawan
+    url: https://github.com/hafizd-kurniawan
+  description: |-
+    This is a simple API for managing IoT devices and user access control for a technical test.
+    All protected endpoints require a Bearer token for authorization.
+  title: Smart Device Management API
+  version: "1.0"
+paths:
+  /devices:
+    get:
+      description: Retrieves a list of all devices that have not been soft-deleted.
+        Accessible by all authenticated users.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Device'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get all active devices
+      tags:
+      - Devices
+    post:
+      consumes:
+      - application/json
+      description: Creates a new device with the provided details. Only accessible
+        by Technicians and Admins.
+      parameters:
+      - description: Device Create Payload
+        in: body
+        name: device
+        required: true
+        schema:
+          $ref: '#/definitions/models.DeviceCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully created device
+          schema:
+            $ref: '#/definitions/models.Device'
+        "400":
+          description: Bad Request - Invalid input
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden - User does not have the required role
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Create a new device
+      tags:
+      - Devices
+  /devices/{id}:
+    delete:
+      description: Marks a device as deleted. Only accessible by Admins.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: object
+        "400":
+          description: Invalid ID format
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Device not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Soft delete a device
+      tags:
+      - Devices
+    get:
+      description: Retrieves details of a specific device. Accessible by all authenticated
+        users.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Device'
+        "400":
+          description: Invalid ID format
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Device not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get a single device by ID
+      tags:
+      - Devices
+  /me:
+    get:
+      description: Retrieves the profile details for the user associated with the
+        token. Accessible by all authenticated roles.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved profile
+          schema:
+            $ref: '#/definitions/models.UserDataResponse'
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - User from token not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get my profile
+      tags:
+      - Users
+  /role:
+    get:
+      description: Retrieves a complete list of all active roles in the system. Requires
+        administrator access.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of roles retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/models.RoleResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get all roles (Admin Only)
+      tags:
+      - Roles
+    post:
+      consumes:
+      - application/json
+      description: Creates a new role in the system. Requires administrator access.
+      parameters:
+      - description: Payload to create a new role
+        in: body
+        name: role
+        required: true
+        schema:
+          $ref: '#/definitions/models.RoleCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Role created successfully
+          schema:
+            $ref: '#/definitions/models.RoleResponse'
+        "400":
+          description: Bad Request - Invalid input data
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized - Missing or invalid token
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden - User does not have admin privileges
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "409":
+          description: Conflict - Role with this name already exists
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Create a new role (Admin Only)
+      tags:
+      - Roles
+  /role/{id}:
+    delete:
+      description: Marks a role as deleted. The role is not permanently removed from
+        the database. Requires administrator access.
+      parameters:
+      - description: Role ID to delete
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: object
+        "400":
+          description: Bad Request - Invalid ID format
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - Role with the specified ID does not exist
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Soft delete a role (Admin Only)
+      tags:
+      - Roles
+    get:
+      description: Retrieves the details of a specific role by its unique ID. Requires
+        administrator access.
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role details retrieved successfully
+          schema:
+            $ref: '#/definitions/models.RoleResponse'
+        "400":
+          description: Bad Request - Invalid ID format
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - Role with the specified ID does not exist
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get a role by ID (Admin Only)
+      tags:
+      - Roles
+    put:
+      consumes:
+      - application/json
+      description: Updates the name of an existing role. Requires administrator access.
+      parameters:
+      - description: Role ID to update
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Payload to update the role
+        in: body
+        name: role
+        required: true
+        schema:
+          $ref: '#/definitions/models.RoleUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role updated successfully
+          schema:
+            $ref: '#/definitions/models.RoleResponse'
+        "400":
+          description: Bad Request - Invalid input or ID
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - Role with the specified ID does not exist
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Update a role (Admin Only)
+      tags:
+      - Roles
+  /user/all:
+    get:
+      description: Retrieves a list of all users. This endpoint is restricted to users
+        with the 'admin' role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved list of users
+          schema:
+            items:
+              $ref: '#/definitions/models.UserListResponse'
+            type: array
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden - User does not have admin role
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get all users (Admin only)
+      tags:
+      - Users
+  /user/delete/{id}:
+    delete:
+      description: Marks a user as deleted in the system. The user is not permanently
+        removed. This endpoint is restricted to users with the 'admin' role.
+      parameters:
+      - description: User ID to delete
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: object
+        "400":
+          description: Bad Request - Invalid ID format
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - User not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Soft delete a user (Admin only)
+      tags:
+      - Users
+  /user/get/{id}:
+    get:
+      description: Retrieves details of a specific user by their ID. This endpoint
+        is restricted to users with the 'admin' role.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved user
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request - Invalid ID format
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - User not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Get a user by ID (Admin only)
+      tags:
+      - Users
+  /user/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and receive a JWT token. This is a public endpoint.
+      parameters:
+      - description: User Credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully authenticated
+          schema:
+            $ref: '#/definitions/models.LoginResponse'
+        "400":
+          description: Bad Request - Invalid input
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized - Invalid credentials
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - User not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      summary: User Login
+      tags:
+      - Authentication
+  /user/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account. This is a public endpoint.
+      parameters:
+      - description: User Registration Payload
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "409":
+          description: Conflict - Email already exists
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      summary: Register a new user
+      tags:
+      - Authentication
+  /user/update/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Updates a user's details, such as name, email, and role. This endpoint
+        is restricted to users with the 'admin' role.
+      parameters:
+      - description: User ID to update
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User Update Payload
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated user
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request - Invalid input or ID
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+        "404":
+          description: Not Found - User not found
+          schema:
+            $ref: '#/definitions/exception.ResponseData'
+      security:
+      - BearerAuth: []
+      summary: Update a user (Admin only)
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and the JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

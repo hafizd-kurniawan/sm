@@ -70,4 +70,4 @@ Redis:
   Host: 10.173.1.38:6379
   Password:
   Db: 0
-  RedisKey: DevelopmentCompanyProfileKeyRedis
+  RedisKey: DevelopmentKeyRedis

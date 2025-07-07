@@ -7,6 +7,22 @@ import (
 	"boilerplate/pkg/infra/logger"
 )
 
+// @title Smart Device Management API
+// @version 1.0
+// @description This is a simple API for managing IoT devices and user access control for a technical test.
+// @description All protected endpoints require a Bearer token for authorization.
+
+// @contact.name Hafizd Kurniawan
+// @contact.url https://github.com/hafizd-kurniawan
+// @contact.email hafizdkurniawan@gmail.com
+
+// @host localhost:3000
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and the JWT token.
 func main() {
 
 	//* ====================== Config ======================
